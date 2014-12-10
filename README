@@ -1,0 +1,28 @@
+ * Copyright (c) 2014 Monica Dunlap
+ *
+ * This program can be distributed under the terms of the GNU GPL.
+ *
+ * This implements a functional mostly null file systems. Files written to exist but are empty. Directory structure is maintained.
+ *   This is achieved by using the an OS file system for the "INODE" table. The only real costs are in inodes and whatever
+ *   blocks are required to maintain directory tables.
+ *
+ * By default this is a "translucent/overlay" mount over top of the target mount point. What was there is still visible. Anything
+ *   added will still be there when unmounted (but empty). Anything removed WILL BE GONE!
+ * By default files are created as sparse files. This means the `ls(1)` size is not their real size. `du` them instead.
+ * Any files that were already there will still be there but appear empty when a read attempt occurs.
+ *
+ * Non-fuse options:
+ *  --debug | -o debug -- Turns on nullfs debugging. * Not to be confused with fuse's -d option which turns this on too.
+ *  -o nosparse        -- Turns off sparse file creation. All files will be 0 bytes instead regardless of how much is written.
+ *  -o username=<name> -- Set the running process to username.  I.E. -o username=nobody will run as user nobody.
+ *  -o inode_dir=<dir> -- Set the directory used for the FS structure instead of the mount point. Turns off "translucent" mode.
+ *                        ** Note that anything already in <dir> will now be in the mount point.
+ *
+ * It is known to work under (CentOS/RHEL 5 6 7 and Fedora 20)
+ *
+ * Notes:
+ * fuse_daemonize() unhelpfully does a chdir("/") in background mode. nullfs_daemonize() was created to do the backgrounding
+ * fuse_parse_cmdline() removes the mountpoint (and -f if set) from args so it is put back.
+ * This forces -f -o default_permissions,nonempty,big_writes on fuse_main(); whether you set it or not.
+ *
+ */
