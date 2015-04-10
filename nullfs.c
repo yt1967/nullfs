@@ -15,7 +15,7 @@
 #include <pwd.h>
 
 /*
- * Copyright (c) 2014 Monica Dunlap
+ * Copyright (c) 2014,2015 Monica Dunlap
  *
  * This program can be distributed under the terms of the GNU GPL.
  *
@@ -72,9 +72,9 @@ static int nullfs_getattr(const char *path, struct stat *stbuf)
   DEBUG("nullfs_getattr(%s)\n",path);
 
   if(path[1] == 0)
-    r = stat(".",stbuf);
+    r = lstat(".",stbuf);
   else
-    r = stat((path + 1),stbuf);
+    r = lstat((path + 1),stbuf);
 
   if(r != 0)
     return -ENOENT;
@@ -301,7 +301,7 @@ static int nullfs_statfs(const char *path, struct statvfs *sfs)
 
   statvfs(".",sfs);
 
-  return 0;
+  return(0);
 }
 
 static int nullfs_chown(const char *path, uid_t u, gid_t g)
@@ -318,8 +318,53 @@ static int nullfs_chown(const char *path, uid_t u, gid_t g)
   else
     r = chown((path + 1),u,g);
 
-  return 0;
+  return(0);
 };
+
+static int nullfs_link(const char *oldpath, const char *newpath)
+{
+  int r;
+
+  DEBUG("nullfs_link('%s','%s')\n",oldpath,newpath);
+
+  r = link((oldpath + 1),(newpath + 1));
+
+  return(r);
+}
+
+static int nullfs_symlink(const char *oldpath, const char *newpath)
+{
+  int r;
+  DEBUG("nullfs_symlink('%s','%s')\n",oldpath,newpath);
+  newpath++;
+
+  DEBUG("symlink('%s','%s')\n",oldpath,newpath);
+  r = symlink(oldpath,newpath);
+
+  if(r == 0)
+    lchown(newpath, fuse_get_context()->uid, fuse_get_context()->gid);
+
+  return(r);
+}
+
+static int nullfs_readlink(const char *path1, char *buf, size_t buf_size)
+{
+  ssize_t r;
+
+  DEBUG("nullfs_readlink('%s')\n",path1);
+
+  r = readlink((path1 + 1), buf, buf_size);
+  if(r == -1)
+    return(errno);
+  else if(r != buf_size)
+    buf[r] = 0;
+  
+  DEBUG("nullfs_readlink returned %d\n",r);
+  DEBUG("nullfs_readlink returned buf=%s\n",buf);
+  DEBUG("nullfs_readlink returned buf_size=%d\n",buf_size);
+
+  return(0);
+}
 
 static int nullfs_utimens(const char *path, const struct timespec ts[2])
 {
@@ -399,6 +444,9 @@ static struct fuse_operations nullfs_oper =
     .chown      = nullfs_chown,
     .utimens    = nullfs_utimens,
     .statfs     = nullfs_statfs,
+    .link       = nullfs_link,
+    .symlink    = nullfs_symlink,
+    .readlink   = nullfs_readlink,
 };
 
 int main(int argc, char **argv)
@@ -520,3 +568,4 @@ int main(int argc, char **argv)
 
   return fuse_main(args.argc, args.argv, &nullfs_oper, NULL);
 };
+
